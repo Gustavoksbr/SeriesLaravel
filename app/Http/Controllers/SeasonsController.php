@@ -17,7 +17,7 @@ class SeasonsController extends Controller
     //     ->where('series_id',$series)
     //     ->get();
     //     return view('seasons.index')->with('seasons', $seasons)->with('series',$series);
-    // }
+    // }  
     public function index(Series $series)
     {  
         $seasons = $series->temporadas()->with('episodes')->get();
