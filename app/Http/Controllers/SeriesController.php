@@ -3,18 +3,33 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\Autenticador;
+use App\Http\Requests\SeriesFormRequest;
+use App\Repositories\EloquentSeriesRepository;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Series;
 use App\Models\Season;
 use App\Models\Episode;
+use Illuminate\Routing;
 
 
 class SeriesController extends Controller
 {
     //
+    public function __construct(private EloquentSeriesRepository $repository)
+    {
+        $this->middleware(Autenticador::class)->except('index');
+    }
     public function index(Request $request)
     {
+        // impede que seja acessível caso não esteja logado
+        // if (!Auth::check())
+        // {
+        //     throw new AuthenticationException();
+        // }
         $series = Series::with(['temporadas'])->get();
         $mensagemSucesso = $request->session()->get('mensagem.sucesso');
         return view('series.index', compact('series'))->with('mensagemSucesso', $mensagemSucesso);
@@ -25,35 +40,12 @@ class SeriesController extends Controller
         return view('series.create');
     }
 
-    public function store(Request $request)
+    public function store(SeriesFormRequest $request)
     {
-        $serie = DB::transaction(function () use($request) {
+        $serie = $this->repository->add($request);
 
-
-            $serie = Series::create($request->all());
-            $seasons = [];
-            for ($i = 1; $i <= $request->seasonsQty; $i++) {
-                $seasons[] = [
-                    'series_id' => $serie->id,
-                    'number' => $i,
-                ];
-            }
-            Season::insert($seasons);
-            foreach ($serie->temporadas as $season) {
-                for ($j = 1; $j <= $request->episodesPerSeason; $j++) {
-                    $episodes[] = [
-                        'season_id' => $season->id,
-                        'number' => $j
-                    ];
-
-                }
-            }
-            Episode::insert($episodes);
-
-            return $serie;
-        });
-        return redirect()->route('series.index')->with('mensagem.sucesso', "Série '{$serie->nome}' adicionado com sucesso");
-
+        return to_route('series.index')
+            ->with('mensagem.sucesso', "Série '{$serie->nome}' adicionada com sucesso");
     }
 
 
